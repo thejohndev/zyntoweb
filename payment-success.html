@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.6);
+      --green-dim: rgba(34, 197, 94, 0.08);
+      --green-border: rgba(34, 197, 94, 0.15);
+      --white: #ffffff;
+      --text-muted: rgba(255, 255, 255, 0.3);
+      --text-sub: rgba(255, 255, 255, 0.75);
+      --divider: rgba(255, 255, 255, 0.06);
+      --bg: #0a0a0a;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      overflow-x: hidden;
+      color: var(--white);
+      padding: 24px 16px;
+    }
+
+    canvas#bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Main wrapper ── */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      padding: 0 4px;
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .wrap.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Animated ring + tick ── */
+    .circle-wrap {
+      position: relative;
+      width: clamp(96px, 28vw, 140px);
+      height: clamp(96px, 28vw, 140px);
+      margin-bottom: clamp(28px, 6vw, 44px);
+      flex-shrink: 0;
+    }
+
+    svg.ring-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--green-dim);
+      stroke-width: 3;
+    }
+
+    .ring-fill {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 408;
+      stroke-dashoffset: 408;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+      filter: drop-shadow(0 0 6px var(--green-glow));
+    }
+
+    .ring-fill.animate {
+      stroke-dashoffset: 0;
+    }
+
+    .circle-inner {
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg.tick {
+      width: clamp(32px, 9vw, 52px);
+      height: clamp(32px, 9vw, 52px);
+      overflow: visible;
+    }
+
+    .tick-path {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 80;
+      stroke-dashoffset: 80;
+      filter: drop-shadow(0 0 8px var(--green-glow));
+    }
+
+    .tick-path.animate {
+      animation: drawTick 0.5s 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes drawTick {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    /* ── Labels & amount ── */
+    .status-label {
+      font-size: clamp(10px, 2.8vw, 13px);
+      font-weight: 600;
+      letter-spacing: clamp(2px, 0.8vw, 3.5px);
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 10px;
+      opacity: 0;
+      animation: fadeUp 0.5s 1.2s ease forwards;
+    }
+
+    .amount {
+      font-size: clamp(42px, 13vw, 76px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      color: var(--white);
+      line-height: 1;
+      margin-bottom: 6px;
+      opacity: 0;
+      animation: fadeUp 0.5s 1.35s ease forwards;
+      word-break: break-all;
+    }
+
+    .amount .rupee {
+      font-size: 0.52em;
+      font-weight: 700;
+      vertical-align: top;
+      margin-top: clamp(6px, 2vw, 10px);
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .paid-label {
+      font-size: clamp(12px, 3.2vw, 14px);
+      color: var(--text-muted);
+      margin-bottom: clamp(32px, 7vw, 52px);
+      opacity: 0;
+      animation: fadeUp 0.5s 1.45s ease forwards;
+    }
+
+    /* ── Info rows ── */
+    .info-block {
+      width: 100%;
+      border-top: 1px solid var(--divider);
+      opacity: 0;
+      animation: fadeUp 0.5s 1.55s ease forwards;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: clamp(12px, 3.5vw, 17px) 0;
+      border-bottom: 1px solid var(--divider);
+      gap: 16px;
+    }
+
+    .info-key {
+      font-size: clamp(12px, 3vw, 13px);
+      color: var(--text-muted);
+      font-weight: 400;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .info-val {
+      font-size: clamp(12px, 3vw, 13px);
+      color: var(--text-sub);
+      font-weight: 600;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 65%;
+    }
+
+    /* ── Brand ── */
+    .brand {
+      margin-top: clamp(28px, 6vw, 40px);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.1);
+      opacity: 0;
+      animation: fadeUp 0.5s 1.7s ease forwards;
+    }
+
+    /* ── Ripple ── */
+    .ripple {
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.08);
+      transform: scale(0);
+      animation: rippleOut 1.5s ease-out forwards;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes rippleOut {
+      to {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── Responsive breakpoints ── */
+    @media (max-width: 360px) {
+      .amount {
+        font-size: 38px;
+      }
+
+      .circle-wrap {
+        width: 90px;
+        height: 90px;
+      }
+
+      .circle-inner {
+        inset: 10px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      body {
+        padding: 48px 24px;
+      }
+
+      .wrap {
+        max-width: 460px;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .wrap {
+        max-width: 500px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="bg"></canvas>
+
+  <div class="wrap" id="wrap">
+
+    <div class="circle-wrap">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65" />
+        <circle class="ring-fill" id="ringFill" cx="70" cy="70" r="65" />
+      </svg>
+      <div class="circle-inner">
+        <svg class="tick" viewBox="0 0 52 52">
+          <path class="tick-path" id="tick" d="M10 26 L22 38 L42 16" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="status-label">Payment Successful</div>
+
+    <div class="amount">
+      <span class="rupee">₹</span><span id="amountVal">0</span>
+    </div>
+    <div class="paid-label">Total Paid</div>
+
+    <div class="info-block">
+      <div class="info-row">
+        <span class="info-key">Order ID</span>
+        <span class="info-val" id="orderVal">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Status</span>
+        <span class="info-val" style="color:#22c55e;">Confirmed</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Powered by</span>
+        <span class="info-val">Zynto</span>
+      </div>
+      <!-- not coming to center-->
+      <div class="info-row" style="text-align: center;">
+        <span class="info-val" style="color:#22c55e; text-align: center;">Close this tab and go to your app</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ── Read URL params ── */
+    const p = new URLSearchParams(window.location.search);
+    const amount = p.get('amount') || '0';
+    const orderId = p.get('order_id') || 'ORD-2025-00000000';
+
+    document.getElementById('amountVal').textContent =
+      Number(amount).toLocaleString('en-IN');
+
+    /* show only last 6 chars of order id */
+    const last6 = String(orderId).slice(-6);
+    document.getElementById('orderVal').textContent = '••• ' + last6;
+
+    /* ── Success sound ── */
+    function playSound() {
+      try {
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        function tone(freq, start, dur, vol) {
+          const o = ac.createOscillator(), g = ac.createGain();
+          o.connect(g); g.connect(ac.destination);
+          o.type = 'sine'; o.frequency.value = freq;
+          g.gain.setValueAtTime(0, ac.currentTime + start);
+          g.gain.linearRampToValueAtTime(vol, ac.currentTime + start + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + start + dur);
+          o.start(ac.currentTime + start);
+          o.stop(ac.currentTime + start + dur + 0.05);
+        }
+        tone(440, 0, 0.18, 0.20);
+        tone(554, 0.15, 0.18, 0.20);
+        tone(659, 0.28, 0.22, 0.22);
+        tone(880, 0.44, 0.50, 0.25);
+        tone(1047, 0.52, 0.40, 0.16);
+      } catch (e) { }
+    }
+
+    /* ── Ripple bursts ── */
+    function doRipples() {
+      [0, 240, 490].forEach(delay => {
+        setTimeout(() => {
+          const r = document.createElement('div');
+          r.className = 'ripple';
+          const size = Math.max(window.innerWidth, window.innerHeight) * 2.8;
+          Object.assign(r.style, {
+            width: size + 'px',
+            height: size + 'px',
+            left: (window.innerWidth / 2 - size / 2) + 'px',
+            top: (window.innerHeight / 2 - size / 2) + 'px',
+          });
+          document.body.appendChild(r);
+          setTimeout(() => r.remove(), 1600);
+        }, delay);
+      });
+    }
+
+    /* ── Floating confetti canvas ── */
+    const canvas = document.getElementById('bg');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#bbf7d0', '#ffffff'];
+    const dots = Array.from({ length: 60 }, () => ({
+      x: Math.random(),
+      y: Math.random() * 1.3,
+      r: Math.random() * 3 + 1.5,
+      sp: Math.random() * 0.006 + 0.003,
+      dx: (Math.random() - 0.5) * 0.002,
+      a: Math.random() * 0.8 + 0.2,
+      c: COLORS[Math.floor(Math.random() * COLORS.length)],
+      sq: Math.random() > 0.55,
+      rot: Math.random() * Math.PI * 2,
+      rs: (Math.random() - 0.5) * 0.05,
+      born: Date.now() + Math.random() * 2200,
+    }));
+
+    (function drawBg() {
+      ctx.clearRect(0, 0, W, H);
+      const now = Date.now();
+      dots.forEach(d => {
+        if (now < d.born) return;
+        d.y -= d.sp; d.x += d.dx; d.rot += d.rs;
+        if (d.y < -0.08) { d.y = 1.15; d.x = Math.random(); }
+        const alpha = d.a * Math.min(1, (1.1 - d.y) * 7, (d.y + 0.05) * 7);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = d.c;
+        ctx.translate(d.x * W, d.y * H);
+        ctx.rotate(d.rot);
+        if (d.sq) {
+          ctx.fillRect(-d.r, -d.r, d.r * 2, d.r * 2);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, d.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+      requestAnimationFrame(drawBg);
+    })();
+
+    /* ── Boot sequence ── */
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('wrap').classList.add('visible');
+        doRipples();
+        playSound();
+        setTimeout(() => document.getElementById('ringFill').classList.add('animate'), 300);
+        setTimeout(() => document.getElementById('tick').classList.add('animate'), 800);
+      }, 120);
+    });
+  </script>
+</body>
+
+</html>
